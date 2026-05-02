@@ -1,22 +1,28 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Content Operations and Analytics Dashboard API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: content
+    description: Content item operations
+  - name: calendar
+    description: Calendar and scheduling operations
+  - name: categories
+    description: Category management
+  - name: analytics
+    description: Analytics and metrics
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +30,377 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /content:
+    get:
+      operationId: listContent
+      tags: [content]
+      summary: List all content items
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, scheduled, published, archived]
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [video, post, reel, story, short]
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: tag
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: number
+        - name: offset
+          in: query
+          schema:
+            type: number
+      responses:
+        "200":
+          description: List of content items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentListResponse"
+    post:
+      operationId: createContent
+      tags: [content]
+      summary: Create a new content item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateContentBody"
+      responses:
+        "201":
+          description: Created content item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentItem"
+
+  /content/{id}:
+    get:
+      operationId: getContent
+      tags: [content]
+      summary: Get a content item by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Content item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentItem"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateContent
+      tags: [content]
+      summary: Update a content item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateContentBody"
+      responses:
+        "200":
+          description: Updated content item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentItem"
+    delete:
+      operationId: deleteContent
+      tags: [content]
+      summary: Delete a content item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Deleted
+
+  /content/{id}/metrics:
+    patch:
+      operationId: updateContentMetrics
+      tags: [content]
+      summary: Update analytics metrics for a content item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMetricsBody"
+      responses:
+        "200":
+          description: Updated content item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentItem"
+
+  /calendar:
+    get:
+      operationId: listCalendarEvents
+      tags: [calendar]
+      summary: List calendar events
+      parameters:
+        - name: month
+          in: query
+          schema:
+            type: number
+        - name: year
+          in: query
+          schema:
+            type: number
+        - name: startDate
+          in: query
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of calendar events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CalendarEvent"
+    post:
+      operationId: createCalendarEvent
+      tags: [calendar]
+      summary: Create a calendar event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCalendarEventBody"
+      responses:
+        "201":
+          description: Created calendar event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarEvent"
+
+  /calendar/{id}:
+    patch:
+      operationId: updateCalendarEvent
+      tags: [calendar]
+      summary: Update a calendar event
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCalendarEventBody"
+      responses:
+        "200":
+          description: Updated calendar event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarEvent"
+    delete:
+      operationId: deleteCalendarEvent
+      tags: [calendar]
+      summary: Delete a calendar event
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Deleted
+
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [categories]
+      summary: List all categories
+      responses:
+        "200":
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+    post:
+      operationId: createCategory
+      tags: [categories]
+      summary: Create a category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryBody"
+      responses:
+        "201":
+          description: Created category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+
+  /categories/{id}:
+    delete:
+      operationId: deleteCategory
+      tags: [categories]
+      summary: Delete a category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Deleted
+
+  /analytics/summary:
+    get:
+      operationId: getAnalyticsSummary
+      tags: [analytics]
+      summary: Get overall analytics summary (totals, averages)
+      responses:
+        "200":
+          description: Analytics summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsSummary"
+
+  /analytics/trends:
+    get:
+      operationId: getMonthlyTrends
+      tags: [analytics]
+      summary: Get monthly performance trends for the last N months
+      parameters:
+        - name: months
+          in: query
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Monthly trends data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MonthlyTrend"
+
+  /analytics/categories:
+    get:
+      operationId: getCategoryPerformance
+      tags: [analytics]
+      summary: Get performance breakdown by category
+      responses:
+        "200":
+          description: Category performance data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategoryPerformance"
+
+  /analytics/consistency:
+    get:
+      operationId: getUploadConsistency
+      tags: [analytics]
+      summary: Get upload consistency metrics by week
+      parameters:
+        - name: weeks
+          in: query
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Upload consistency data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConsistencyMetric"
+
+  /analytics/top-content:
+    get:
+      operationId: getTopContent
+      tags: [analytics]
+      summary: Get top performing content items
+      parameters:
+        - name: metric
+          in: query
+          schema:
+            type: string
+            enum: [views, engagement, retention]
+        - name: limit
+          in: query
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Top content items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContentItem"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +408,350 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    ContentItem:
+      type: object
+      properties:
+        id:
+          type: number
+        title:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [video, post, reel, story, short]
+        status:
+          type: string
+          enum: [draft, scheduled, published, archived]
+        category:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        thumbnailUrl:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        publishedAt:
+          type: string
+          format: date-time
+        views:
+          type: number
+        likes:
+          type: number
+        comments:
+          type: number
+        shares:
+          type: number
+        watchTimeSeconds:
+          type: number
+        retentionRate:
+          type: number
+        engagementRate:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - type
+        - status
+        - createdAt
+        - updatedAt
+
+    ContentListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContentItem"
+        total:
+          type: number
+        limit:
+          type: number
+        offset:
+          type: number
+      required: [items, total, limit, offset]
+
+    CreateContentBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [video, post, reel, story, short]
+        status:
+          type: string
+          enum: [draft, scheduled, published, archived]
+        category:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        thumbnailUrl:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+      required: [title, type, status]
+
+    UpdateContentBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [video, post, reel, story, short]
+        status:
+          type: string
+          enum: [draft, scheduled, published, archived]
+        category:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        thumbnailUrl:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        publishedAt:
+          type: string
+          format: date-time
+
+    UpdateMetricsBody:
+      type: object
+      properties:
+        views:
+          type: number
+        likes:
+          type: number
+        comments:
+          type: number
+        shares:
+          type: number
+        watchTimeSeconds:
+          type: number
+        retentionRate:
+          type: number
+
+    CalendarEvent:
+      type: object
+      properties:
+        id:
+          type: number
+        contentId:
+          type: number
+        title:
+          type: string
+        description:
+          type: string
+        date:
+          type: string
+          format: date-time
+        type:
+          type: string
+          enum: [publish, draft, review, idea, milestone]
+        status:
+          type: string
+          enum: [pending, completed, cancelled]
+        color:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, title, date, type, status, createdAt]
+
+    CreateCalendarEventBody:
+      type: object
+      properties:
+        contentId:
+          type: number
+        title:
+          type: string
+        description:
+          type: string
+        date:
+          type: string
+          format: date-time
+        type:
+          type: string
+          enum: [publish, draft, review, idea, milestone]
+        status:
+          type: string
+          enum: [pending, completed, cancelled]
+        color:
+          type: string
+      required: [title, date, type, status]
+
+    UpdateCalendarEventBody:
+      type: object
+      properties:
+        contentId:
+          type: number
+        title:
+          type: string
+        description:
+          type: string
+        date:
+          type: string
+          format: date-time
+        type:
+          type: string
+          enum: [publish, draft, review, idea, milestone]
+        status:
+          type: string
+          enum: [pending, completed, cancelled]
+        color:
+          type: string
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        color:
+          type: string
+        contentCount:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, createdAt]
+
+    CreateCategoryBody:
+      type: object
+      properties:
+        name:
+          type: string
+        color:
+          type: string
+      required: [name]
+
+    AnalyticsSummary:
+      type: object
+      properties:
+        totalContent:
+          type: number
+        publishedContent:
+          type: number
+        scheduledContent:
+          type: number
+        draftContent:
+          type: number
+        totalViews:
+          type: number
+        totalLikes:
+          type: number
+        totalComments:
+          type: number
+        totalShares:
+          type: number
+        avgRetentionRate:
+          type: number
+        avgEngagementRate:
+          type: number
+        avgViewsPerContent:
+          type: number
+        uploadsThisMonth:
+          type: number
+        uploadsLastMonth:
+          type: number
+        viewsThisMonth:
+          type: number
+        viewsLastMonth:
+          type: number
+      required:
+        - totalContent
+        - publishedContent
+        - scheduledContent
+        - draftContent
+        - totalViews
+        - totalLikes
+        - totalComments
+        - totalShares
+        - avgRetentionRate
+        - avgEngagementRate
+        - avgViewsPerContent
+        - uploadsThisMonth
+        - uploadsLastMonth
+        - viewsThisMonth
+        - viewsLastMonth
+
+    MonthlyTrend:
+      type: object
+      properties:
+        month:
+          type: string
+        year:
+          type: number
+        label:
+          type: string
+        views:
+          type: number
+        likes:
+          type: number
+        comments:
+          type: number
+        shares:
+          type: number
+        uploads:
+          type: number
+        avgRetentionRate:
+          type: number
+        avgEngagementRate:
+          type: number
+      required: [month, year, label, views, likes, comments, shares, uploads, avgRetentionRate, avgEngagementRate]
+
+    CategoryPerformance:
+      type: object
+      properties:
+        category:
+          type: string
+        contentCount:
+          type: number
+        totalViews:
+          type: number
+        totalLikes:
+          type: number
+        totalComments:
+          type: number
+        avgRetentionRate:
+          type: number
+        avgEngagementRate:
+          type: number
+      required: [category, contentCount, totalViews, totalLikes, totalComments, avgRetentionRate, avgEngagementRate]
+
+    ConsistencyMetric:
+      type: object
+      properties:
+        weekLabel:
+          type: string
+        weekStart:
+          type: string
+        uploadsCount:
+          type: number
+        targetUploads:
+          type: number
+        consistencyScore:
+          type: number
+      required: [weekLabel, weekStart, uploadsCount, targetUploads, consistencyScore]
