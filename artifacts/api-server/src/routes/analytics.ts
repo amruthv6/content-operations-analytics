@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import { contentTable } from "@workspace/db";
 import { eq, sql, and, gte, lte, desc } from "drizzle-orm";
 import {
@@ -94,12 +94,13 @@ router.get("/summary", async (req, res) => {
 router.get("/trends", async (req, res) => {
   const query = GetMonthlyTrendsQueryParams.parse(req.query);
   const months = Number(query.months ?? 6);
+  const monthsBack = Math.max(0, Math.min(24, months - 1));
 
-  const rows = await db.execute(sql`
+  const rawSql = `
     SELECT
-      TO_CHAR(date_trunc('month', created_at), 'Mon') as month,
-      EXTRACT(YEAR FROM created_at)::int as year,
-      TO_CHAR(date_trunc('month', created_at), 'Mon YYYY') as label,
+      TO_CHAR(mb, 'Mon') as month,
+      EXTRACT(YEAR FROM mb)::int as year,
+      TO_CHAR(mb, 'Mon YYYY') as label,
       COALESCE(SUM(views), 0)::int as views,
       COALESCE(SUM(likes), 0)::int as likes,
       COALESCE(SUM(comments), 0)::int as comments,
@@ -107,14 +108,20 @@ router.get("/trends", async (req, res) => {
       COUNT(*)::int as uploads,
       COALESCE(AVG(retention_rate), 0)::float as "avgRetentionRate",
       COALESCE(AVG(engagement_rate), 0)::float as "avgEngagementRate"
-    FROM content
-    WHERE created_at >= date_trunc('month', NOW()) - INTERVAL '1 month' * ${months - 1}
-    GROUP BY date_trunc('month', created_at)
-    ORDER BY date_trunc('month', created_at) ASC
-  `);
+    FROM (
+      SELECT
+        date_trunc('month', created_at) AS mb,
+        views, likes, comments, shares, retention_rate, engagement_rate
+      FROM content
+      WHERE created_at >= date_trunc('month', NOW()) - INTERVAL '${monthsBack} months'
+    ) sub
+    GROUP BY mb
+    ORDER BY mb ASC
+  `;
+  const result = await pool.query(rawSql);
 
   res.json(
-    (rows as any[]).map((r) => ({
+    result.rows.map((r) => ({
       month: r.month,
       year: r.year,
       label: r.label,
@@ -130,7 +137,7 @@ router.get("/trends", async (req, res) => {
 });
 
 router.get("/categories", async (req, res) => {
-  const rows = await db.execute(sql`
+  const catResult = await db.execute(sql`
     SELECT
       COALESCE(category, 'Uncategorized') as category,
       COUNT(*)::int as "contentCount",
@@ -143,6 +150,7 @@ router.get("/categories", async (req, res) => {
     GROUP BY COALESCE(category, 'Uncategorized')
     ORDER BY "totalViews" DESC
   `);
+  const rows = catResult.rows;
 
   res.json(
     (rows as any[]).map((r) => ({
@@ -160,11 +168,12 @@ router.get("/categories", async (req, res) => {
 router.get("/consistency", async (req, res) => {
   const query = GetUploadConsistencyQueryParams.parse(req.query);
   const weeks = Number(query.weeks ?? 12);
+  const weeksBack = Math.max(0, Math.min(52, weeks - 1));
 
-  const rows = await db.execute(sql`
+  const rawSql = `
     WITH week_series AS (
       SELECT generate_series(
-        date_trunc('week', NOW()) - INTERVAL '1 week' * ${weeks - 1},
+        date_trunc('week', NOW()) - INTERVAL '${weeksBack} weeks',
         date_trunc('week', NOW()),
         INTERVAL '1 week'
       ) AS week_start
@@ -174,7 +183,7 @@ router.get("/consistency", async (req, res) => {
         date_trunc('week', created_at) AS week_start,
         COUNT(*)::int AS uploads_count
       FROM content
-      WHERE created_at >= date_trunc('week', NOW()) - INTERVAL '1 week' * ${weeks - 1}
+      WHERE created_at >= date_trunc('week', NOW()) - INTERVAL '${weeksBack} weeks'
       GROUP BY date_trunc('week', created_at)
     )
     SELECT
@@ -186,10 +195,11 @@ router.get("/consistency", async (req, res) => {
     FROM week_series ws
     LEFT JOIN uploads_per_week upw ON ws.week_start = upw.week_start
     ORDER BY ws.week_start ASC
-  `);
+  `;
+  const conResult = await pool.query(rawSql);
 
   res.json(
-    (rows as any[]).map((r) => ({
+    conResult.rows.map((r) => ({
       weekLabel: r.weekLabel,
       weekStart: r.weekStart,
       uploadsCount: r.uploadsCount,
